@@ -36,12 +36,35 @@ export function buildApiController({ app }: Pick<ControllerPayload, "app">) {
               availableMemberNumber: { type: "number" },
             },
           },
+          CreateTeam: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string" },
+              totalScore: { type: "number" },
+              memberNumber: { type: "number" },
+              availableMemberNumber: { type: "number" },
+            },
+          },
+        },
+        securitySchemes: {
+          bearerAuth: {
+            type: "http",
+            scheme: "bearer",
+            bearerFormat: "JWT",
+          },
         },
       },
+      security: [
+        {
+          bearerAuth: [], // Indicates that JWT authentication is required for all operations
+        },
+      ],
     },
     apis: [
-      "./src/server/controller/player.ts", 
-      "./src/server/controller/team.ts", 
+      "./src/server/controller/player.ts",
+      "./src/server/controller/team.ts",
+      "./src/server/controller/auth.ts",
     ],
   };
 

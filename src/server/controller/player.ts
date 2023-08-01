@@ -22,6 +22,8 @@ export function buildPlayerController({
    * /api/players:
    *   get:
    *     summary: Get all players.
+   *     tags:
+   *      - Players
    *     responses:
    *       200:
    *         description: OK.
@@ -47,6 +49,8 @@ export function buildPlayerController({
    * /api/players:
    *   post:
    *     summary: Create a new player.
+   *     tags:
+   *      - Players
    *     requestBody:
    *       required: true
    *       content:
@@ -79,6 +83,8 @@ export function buildPlayerController({
    * /api/players/{id}:
    *   get:
    *     summary: Get a player by ID.
+   *     tags:
+   *      - Players
    *     parameters:
    *       - in: path
    *         name: id
@@ -115,6 +121,8 @@ export function buildPlayerController({
    * /api/players/{id}:
    *   put:
    *     summary: Update a player by ID.
+   *     tags:
+   *      - Players
    *     parameters:
    *       - in: path
    *         name: id
@@ -162,6 +170,8 @@ export function buildPlayerController({
    * /api/players/{id}:
    *   delete:
    *     summary: Delete a player by ID.
+   *    tags:
+   *   - Players
    *     parameters:
    *       - in: path
    *         name: id

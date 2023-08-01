@@ -1,8 +1,9 @@
-import { teams, Team } from "../../dtos/team";
+import { teams, Team, joinRequests, JoinRequest } from "../../dtos/team";
 import { ControllerPayload } from "./player.interface";
 import { Request, Response } from "express";
 import { validateSchema } from "../validation/utils";
 import { createTeamSchema } from "../validation/team";
+import { users } from "../../dtos/user";
 
 /**
  * Build the Team Controller with specified routes and middleware.
@@ -24,6 +25,8 @@ export function buildTeamController({
    * /api/teams:
    *   get:
    *     summary: Get all teams.
+   *    tags:
+   *    - Teams
    *     responses:
    *       200:
    *         description: OK.
@@ -49,12 +52,14 @@ export function buildTeamController({
    * /api/teams:
    *   post:
    *     summary: Create a new team.
+   *    tags:
+   *     - Teams
    *     requestBody:
    *       required: true
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/Team'
+   *             $ref: '#/components/schemas/CreateTeam'
    *     responses:
    *       201:
    *         description: Created.
@@ -69,15 +74,18 @@ export function buildTeamController({
     validateSchema(createTeamSchema), // Validate the request body against the createTeamSchema
     (req: Request, res: Response) => {
       const { name, memberNumber } = req.body;
-
+      const user = users.find(
+        (user) => user.id.toString() === req.user.userId.toString()
+      );
       // Create a new team and add it to the database
       const newTeam: Team = {
         id: (teams.length + 1).toString(),
         name,
-        ownerName: req.user.name, // Assuming you have middleware that populates the authenticated user information in req.user
+        ownerName: user.username, // Assuming you have middleware that populates the authenticated user information in req.user
         totalScore: 0,
         memberNumber,
         availableMemberNumber: memberNumber,
+        joinRequests: [],
       };
       teams.push(newTeam);
 
@@ -92,6 +100,8 @@ export function buildTeamController({
    * /api/teams/{id}:
    *   get:
    *     summary: Get a team by ID.
+   *     tags:
+   *     - Teams
    *     parameters:
    *       - in: path
    *         name: id
@@ -128,6 +138,8 @@ export function buildTeamController({
    * /api/teams/{id}:
    *   put:
    *     summary: Update a team by ID.
+   *     tags:
+   *      - Teams
    *     parameters:
    *       - in: path
    *         name: id
@@ -182,6 +194,8 @@ export function buildTeamController({
    * /api/teams/{id}:
    *   delete:
    *     summary: Delete a team by ID.
+   *    tags:
+   *      - Teams
    *     parameters:
    *       - in: path
    *         name: id
@@ -207,4 +221,71 @@ export function buildTeamController({
       }
     }
   );
+  /**
+   * @swagger
+   * /api/join-team:
+   *   post:
+   *     summary: Send a join request to join a team.
+   *     tags:
+   *       - Teams
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               userId:
+   *                 type: string
+   *               teamId:
+   *                 type: string
+   *             required:
+   *               - userId
+   *               - teamId
+   *     responses:
+   *       200:
+   *         description: OK. Join request sent successfully.
+   *       404:
+   *         description: Team not found.
+   *       409:
+   *         description: Join request already sent or team is full.
+   *       500:
+   *         description: Internal Server Error.
+   */
+
+  app.post(`${urlPrefix}/teams/join`, ...middleware, joinTeam);
+}
+
+function joinTeam(req: Request, res: Response) {
+  const { userId, teamId } = req.body;
+
+  // Check if the user has already sent a join request for the team
+  const existingRequest = joinRequests.find(
+    (request) => request.userId === userId && request.teamId === teamId
+  );
+
+  if (existingRequest) {
+    return res.status(409).json({ message: "Join request already sent." });
+  }
+
+  // Check if the team exists
+  const team = teams.find((team) => team.id === teamId);
+  if (!team) {
+    return res.status(404).json({ message: "Team not found." });
+  }
+
+  // Check if there are available slots in the team
+  if (team.availableMemberNumber <= 0) {
+    return res.status(409).json({ message: "Team is full." });
+  }
+
+  // Add the join request to the list
+  const newRequest: JoinRequest = {
+    userId,
+    teamId,
+    status: "pending",
+  };
+  joinRequests.push(newRequest);
+
+  res.json({ message: "Join request sent successfully." });
 }
