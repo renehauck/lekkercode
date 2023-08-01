@@ -1,29 +1,24 @@
-import { players, Player } from "../../dtos/player";
 import { ControllerPayload } from "./player.interface";
 import { Request, Response } from "express";
+import { PlayerService } from "../service/player"; // Import the PlayerService
 
 /**
  * Build the Player Controller with specified routes and middleware.
- *
- * @param {ControllerPayload} options - The options object containing the Express app, middleware, and URL prefix.
- * @param {Object} options.app - The Express app to attach the routes to.
- * @param {Function[]} options.middleware - An array of middleware functions to be applied to the routes.
- * @param {string} options.urlPrefix - The URL prefix for all player routes.
  */
 export function buildPlayerController({
   app,
   middleware,
   urlPrefix,
 }: ControllerPayload) {
+  const playerService = new PlayerService(); 
+
   /**
-   * Get all players.
-   *
    * @swagger
    * /api/players:
    *   get:
    *     summary: Get all players.
    *     tags:
-   *      - Players
+   *       - Players
    *     responses:
    *       200:
    *         description: OK.
@@ -34,23 +29,15 @@ export function buildPlayerController({
    *               items:
    *                 $ref: '#/components/schemas/Player'
    */
-  app.get(
-    `${urlPrefix}/players`,
-    ...middleware,
-    (req: Request, res: Response) => {
-      res.json(players);
-    }
-  );
+  app.get(`${urlPrefix}/players`, ...middleware, playerService.getAll);
 
   /**
-   * Create a new player.
-   *
    * @swagger
    * /api/players:
    *   post:
    *     summary: Create a new player.
    *     tags:
-   *      - Players
+   *       - Players
    *     requestBody:
    *       required: true
    *       content:
@@ -65,26 +52,15 @@ export function buildPlayerController({
    *             schema:
    *               $ref: '#/components/schemas/Player'
    */
-  app.post(
-    `${urlPrefix}/players`,
-    ...middleware,
-    (req: Request, res: Response) => {
-      const { id, rank, name, score, team } = req.body;
-      const newPlayer: Player = { id, rank, name, score, team };
-      players.push(newPlayer);
-      res.status(201).json(newPlayer);
-    }
-  );
+  app.post(`${urlPrefix}/players`, ...middleware, playerService.create);
 
   /**
-   * Get a player by ID.
-   *
    * @swagger
    * /api/players/{id}:
    *   get:
    *     summary: Get a player by ID.
    *     tags:
-   *      - Players
+   *       - Players
    *     parameters:
    *       - in: path
    *         name: id
@@ -101,28 +77,15 @@ export function buildPlayerController({
    *       404:
    *         description: Player not found.
    */
-  app.get(
-    `${urlPrefix}/players/:id`,
-    ...middleware,
-    (req: Request, res: Response) => {
-      const player = players.find((p) => p.id === req.params.id);
-      if (player) {
-        res.json(player);
-      } else {
-        res.sendStatus(404);
-      }
-    }
-  );
+  app.get(`${urlPrefix}/players/:id`, ...middleware, playerService.get);
 
   /**
-   * Update a player by ID.
-   *
    * @swagger
    * /api/players/{id}:
    *   put:
    *     summary: Update a player by ID.
    *     tags:
-   *      - Players
+   *       - Players
    *     parameters:
    *       - in: path
    *         name: id
@@ -145,33 +108,16 @@ export function buildPlayerController({
    *       404:
    *         description: Player not found.
    */
-  app.put(
-    `${urlPrefix}/players/:id`,
-    ...middleware,
-    (req: Request, res: Response) => {
-      const { rank, name, score, team } = req.body;
-      const player = players.find((p) => p.id === req.params.id);
-      if (player) {
-        player.rank = rank;
-        player.name = name;
-        player.score = score;
-        player.team = team;
-        res.json(player);
-      } else {
-        res.sendStatus(404);
-      }
-    }
-  );
+  app.put(`${urlPrefix}/players/:id`, ...middleware, playerService.update);
 
+  // Swagger Kommentar für Delete a player by ID
   /**
-   * Delete a player by ID.
-   *
    * @swagger
    * /api/players/{id}:
    *   delete:
    *     summary: Delete a player by ID.
-   *    tags:
-   *   - Players
+   *     tags:
+   *       - Players
    *     parameters:
    *       - in: path
    *         name: id
@@ -184,17 +130,5 @@ export function buildPlayerController({
    *       404:
    *         description: Player not found.
    */
-  app.delete(
-    `${urlPrefix}/players/:id`,
-    ...middleware,
-    (req: Request, res: Response) => {
-      const index = players.findIndex((p) => p.id === req.params.id);
-      if (index !== -1) {
-        players.splice(index, 1);
-        res.sendStatus(204);
-      } else {
-        res.sendStatus(404);
-      }
-    }
-  );
+  app.delete(`${urlPrefix}/players/:id`, ...middleware, playerService.remove);
 }

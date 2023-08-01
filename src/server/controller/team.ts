@@ -1,9 +1,7 @@
-import { teams, Team, joinRequests, JoinRequest } from "../../dtos/team";
-import { ControllerPayload } from "./player.interface";
-import { Request, Response } from "express";
-import { validateSchema } from "../validation/utils";
+import { TeamService } from "../service/team";
 import { createTeamSchema } from "../validation/team";
-import { users } from "../../dtos/user";
+import { validateSchema } from "../validation/utils";
+import { ControllerPayload } from "./player.interface";
 
 /**
  * Build the Team Controller with specified routes and middleware.
@@ -18,6 +16,7 @@ export function buildTeamController({
   middleware,
   urlPrefix,
 }: ControllerPayload) {
+  const teamService = new TeamService();
   /**
    * Get all teams.
    *
@@ -25,8 +24,8 @@ export function buildTeamController({
    * /api/teams:
    *   get:
    *     summary: Get all teams.
-   *    tags:
-   *    - Teams
+   *     tags:
+   *       - Teams
    *     responses:
    *       200:
    *         description: OK.
@@ -37,13 +36,7 @@ export function buildTeamController({
    *               items:
    *                 $ref: '#/components/schemas/Team'
    */
-  app.get(
-    `${urlPrefix}/teams`,
-    ...middleware,
-    (req: Request, res: Response) => {
-      res.json(teams);
-    }
-  );
+  app.get(`${urlPrefix}/teams`, ...middleware, teamService.getAll);
 
   /**
    * Create a new team.
@@ -52,8 +45,8 @@ export function buildTeamController({
    * /api/teams:
    *   post:
    *     summary: Create a new team.
-   *    tags:
-   *     - Teams
+   *     tags:
+   *       - Teams
    *     requestBody:
    *       required: true
    *       content:
@@ -72,25 +65,7 @@ export function buildTeamController({
     `${urlPrefix}/teams`,
     ...middleware,
     validateSchema(createTeamSchema), // Validate the request body against the createTeamSchema
-    (req: Request, res: Response) => {
-      const { name, memberNumber } = req.body;
-      const user = users.find(
-        (user) => user.id.toString() === req.user.userId.toString()
-      );
-      // Create a new team and add it to the database
-      const newTeam: Team = {
-        id: (teams.length + 1).toString(),
-        name,
-        ownerName: user.username, // Assuming you have middleware that populates the authenticated user information in req.user
-        totalScore: 0,
-        memberNumber,
-        availableMemberNumber: memberNumber,
-        joinRequests: [],
-      };
-      teams.push(newTeam);
-
-      res.status(201).json(newTeam);
-    }
+    teamService.create
   );
 
   /**
@@ -101,7 +76,7 @@ export function buildTeamController({
    *   get:
    *     summary: Get a team by ID.
    *     tags:
-   *     - Teams
+   *       - Teams
    *     parameters:
    *       - in: path
    *         name: id
@@ -118,18 +93,7 @@ export function buildTeamController({
    *       404:
    *         description: Team not found.
    */
-  app.get(
-    `${urlPrefix}/teams/:id`,
-    ...middleware,
-    (req: Request, res: Response) => {
-      const team = teams.find((t) => t.id === req.params.id);
-      if (team) {
-        res.json(team);
-      } else {
-        res.sendStatus(404);
-      }
-    }
-  );
+  app.get(`${urlPrefix}/teams/:id`, ...middleware, teamService.get);
 
   /**
    * Update a team by ID.
@@ -139,7 +103,7 @@ export function buildTeamController({
    *   put:
    *     summary: Update a team by ID.
    *     tags:
-   *      - Teams
+   *       - Teams
    *     parameters:
    *       - in: path
    *         name: id
@@ -162,30 +126,7 @@ export function buildTeamController({
    *       404:
    *         description: Team not found.
    */
-  app.put(
-    `${urlPrefix}/teams/:id`,
-    ...middleware,
-    (req: Request, res: Response) => {
-      const {
-        name,
-        ownerName,
-        totalScore,
-        memberNumber,
-        availableMemberNumber,
-      } = req.body;
-      const team = teams.find((t) => t.id === req.params.id);
-      if (team) {
-        team.name = name;
-        team.ownerName = ownerName;
-        team.totalScore = totalScore;
-        team.memberNumber = memberNumber;
-        team.availableMemberNumber = availableMemberNumber;
-        res.json(team);
-      } else {
-        res.sendStatus(404);
-      }
-    }
-  );
+  app.put(`${urlPrefix}/teams/:id`, ...middleware, teamService.update);
 
   /**
    * Delete a team by ID.
@@ -194,8 +135,8 @@ export function buildTeamController({
    * /api/teams/{id}:
    *   delete:
    *     summary: Delete a team by ID.
-   *    tags:
-   *      - Teams
+   *     tags:
+   *       - Teams
    *     parameters:
    *       - in: path
    *         name: id
@@ -208,19 +149,8 @@ export function buildTeamController({
    *       404:
    *         description: Team not found.
    */
-  app.delete(
-    `${urlPrefix}/teams/:id`,
-    ...middleware,
-    (req: Request, res: Response) => {
-      const index = teams.findIndex((t) => t.id === req.params.id);
-      if (index !== -1) {
-        teams.splice(index, 1);
-        res.sendStatus(204);
-      } else {
-        res.sendStatus(404);
-      }
-    }
-  );
+  app.delete(`${urlPrefix}/teams/:id`, ...middleware, teamService.remove);
+
   /**
    * @swagger
    * /api/join-team:
@@ -253,39 +183,48 @@ export function buildTeamController({
    *         description: Internal Server Error.
    */
 
-  app.post(`${urlPrefix}/teams/join`, ...middleware, joinTeam);
-}
+  app.post(`${urlPrefix}/teams/join`, ...middleware, teamService.joinTeam);
 
-function joinTeam(req: Request, res: Response) {
-  const { userId, teamId } = req.body;
-
-  // Check if the user has already sent a join request for the team
-  const existingRequest = joinRequests.find(
-    (request) => request.userId === userId && request.teamId === teamId
+  /**
+   * Controller function for rejecting a join request.
+   *
+   * @swagger
+   * /api/reject-join-request:
+   *   post:
+   *     summary: Reject a join request for a team.
+   *     tags:
+   *       - Teams
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               requestId:
+   *                 type: string
+   *               teamId:
+   *                 type: string
+   *             required:
+   *               - requestId
+   *               - teamId
+   *     responses:
+   *       200:
+   *         description: OK. Join request rejected successfully.
+   *       401:
+   *         description: Unauthorized. You must be the team owner to reject join requests.
+   *       403:
+   *         description: Forbidden. The provided join request ID or team ID is invalid.
+   *       404:
+   *         description: Join request not found or team not found.
+   *       500:
+   *         description: Internal Server Error.
+   */
+  app.post(
+    `${urlPrefix}/reject-join-request`,
+    ...middleware,
+    teamService.rejectJoinRequest
   );
-
-  if (existingRequest) {
-    return res.status(409).json({ message: "Join request already sent." });
-  }
-
-  // Check if the team exists
-  const team = teams.find((team) => team.id === teamId);
-  if (!team) {
-    return res.status(404).json({ message: "Team not found." });
-  }
-
-  // Check if there are available slots in the team
-  if (team.availableMemberNumber <= 0) {
-    return res.status(409).json({ message: "Team is full." });
-  }
-
-  // Add the join request to the list
-  const newRequest: JoinRequest = {
-    userId,
-    teamId,
-    status: "pending",
-  };
-  joinRequests.push(newRequest);
-
-  res.json({ message: "Join request sent successfully." });
 }

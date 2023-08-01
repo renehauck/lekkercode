@@ -1,6 +1,8 @@
 import { players } from "./player";
+import { users } from "./user";
 
 export interface JoinRequest {
+  id: string;
   userId: number;
   teamId: string;
   status: "pending" | "accepted" | "rejected";
@@ -10,12 +12,12 @@ export interface Team {
   id: string;
   name: string;
   ownerName: string;
+  ownerId: string;
   totalScore: number;
   memberNumber: number;
   availableMemberNumber: number;
   joinRequests: JoinRequest[];
 }
-
 
 export const teams: Team[] = [
   {
@@ -26,6 +28,7 @@ export const teams: Team[] = [
     memberNumber: players.length,
     availableMemberNumber: 10 - players.length,
     joinRequests: [],
+    ownerId: users[0].id.toString(),
   },
   {
     id: "2",
@@ -35,6 +38,7 @@ export const teams: Team[] = [
     memberNumber: players.length,
     availableMemberNumber: 10 - players.length,
     joinRequests: [],
+    ownerId: users[0].id.toString(),
   },
 ];
 
