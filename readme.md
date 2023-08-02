@@ -52,6 +52,13 @@ Here are some commands you can use:
   ```bash
   yarn docker-compose
   ```
+### Url
+
+Url is http://localhost:3000/api
+
+### Api docu
+
+you can find the swagger documentary at http://localhost:3000/api-docs/
 
 ### Note on `.env` file
 
